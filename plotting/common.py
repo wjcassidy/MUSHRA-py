@@ -6,6 +6,7 @@ import re
 from collections import defaultdict
 from pathlib import Path
 
+import matplotlib.pyplot as plt
 import numpy as np
 from scipy import stats
 
@@ -20,6 +21,8 @@ ALL_SIGNALS = "All signals"
 SIGNAL_NAMES = {"Beet": "Classical", "Hand": "Handclaps", "Slow": "Pop"}
 
 CONDITIONS = ["target", "fulloptim", "geq", "passive"]
+# Display names for the condition names used in the stimulus filenames
+CONDITION_LABELS = {"target": "Target", "fulloptim": "Full Optim.", "geq": "Graphic EQ", "passive": "Passive"}
 # Sampled from matplotlib's magma colormap at np.linspace(0.15, 0.8, 4)
 CONDITION_COLOURS = {
     "target": "#251255",
@@ -29,6 +32,77 @@ CONDITION_COLOURS = {
 }
 CONDITION_MARKERS = {"target": "o", "fulloptim": "s", "geq": "D", "passive": "^"}
 GRID_COLOUR = "#e5e4df"
+
+# Figure sizes for an IEEE Transactions paper (IEEEtran journal layout). IEEE asks for 8-10 pt text in
+# figures. Every figure is laid out on the twocolumn canvas, so both sizes have the same aspect ratio,
+# markers and line widths; the onecolumn figure only has larger fonts and fewer pixels, so that when it
+# is scaled down to the column width its fonts appear at font_size and its resolution is dpi. Include
+# the figures in LaTeX with width=\columnwidth (onecolumn) or width=\textwidth (twocolumn).
+#   onecolumn: fits one column (\columnwidth = 21pc), for a figure environment
+#   twocolumn: spans both columns (\textwidth = 43pc), for a figure* environment
+FIGURE_SIZES = {
+    "onecolumn": {"width": 252 / 72.27, "font_size": 8, "small_font_size": 8, "dpi": 800},
+    "twocolumn": {"width": 516 / 72.27, "font_size": 9, "small_font_size": 8, "dpi": 800},
+}
+CANVAS_WIDTH = FIGURE_SIZES["twocolumn"]["width"]
+
+
+def apply_figure_style(figure_size):
+    """Set the matplotlib style (LaTeX text in Times, font sizes, DPI) for a figure size."""
+    spec = FIGURE_SIZES[figure_size]
+    # How much the figure is scaled when included in the paper
+    scale = spec["width"] / CANVAS_WIDTH
+    font_size = spec["font_size"] / scale
+    small_font_size = spec["small_font_size"] / scale
+    plt.rcParams.update({
+        "text.usetex": True,
+        # Times text and maths via newtx, matching the IEEEtran body font
+        "text.latex.preamble": r"\usepackage{newtxtext,newtxmath}",
+        "font.family": "serif",
+        "font.size": font_size,
+        "axes.titlesize": font_size,
+        "axes.labelsize": font_size,
+        "xtick.labelsize": small_font_size,
+        "ytick.labelsize": small_font_size,
+        "legend.fontsize": small_font_size,
+        "legend.title_fontsize": font_size,
+        "figure.labelsize": font_size,
+        "figure.titlesize": font_size,
+        "axes.linewidth": 0.6,
+        "xtick.major.width": 0.6,
+        "ytick.major.width": 0.6,
+        "xtick.major.size": 3,
+        "ytick.major.size": 3,
+        "savefig.dpi": spec["dpi"] * scale,
+        "figure.dpi": 150,
+    })
+    return spec
+
+
+def figure_dimensions(height):
+    """Return the (width, height) in inches of the canvas every figure is laid out on."""
+    return CANVAS_WIDTH, height
+
+
+def add_figure_size_arg(parser, default):
+    parser.add_argument("--figure-size", default=default, choices=list(FIGURE_SIZES),
+                        help="Size the figure (and its font sizes and DPI) to fit one column (onecolumn) "
+                             "or span both columns (twocolumn) of an IEEE Transactions paper "
+                             "(default: %(default)s)")
+
+
+def set_combination_ticks(ax, x, combinations, figure_size):
+    """Label the x-axis with the passive/target combinations, rotated if they would overlap."""
+    ax.set_xticks(x)
+    ax.set_xticklabels(combinations, rotation=90 if figure_size == "onecolumn" and len(combinations) > 8 else 0)
+
+
+def add_legend(fig, handles, labels, title="Condition"):
+    """Add a figure legend to the right of the axes.
+
+    The figure must use the constrained layout so the legend's space is reserved.
+    """
+    return fig.legend(handles, labels, title=title, loc="outside right upper", frameon=False)
 
 
 def load_ratings(paths, include_repeats, split_signals=True):
@@ -76,7 +150,7 @@ def plot_layout(ratings):
 
 
 def style_axis(ax, signal, ylabel):
-    ax.set_title(SIGNAL_NAMES.get(signal, signal), loc="left", fontsize=11)
+    ax.set_title(SIGNAL_NAMES.get(signal, signal), loc="left")
     # Leave headroom so points/CIs at the ends of the 0-100 scale aren't clipped
     ax.set_ylim(-10, 110)
     ax.set_yticks(range(0, 101, 20))
@@ -87,8 +161,9 @@ def style_axis(ax, signal, ylabel):
         ax.spines[spine].set_visible(False)
 
 
-def add_common_args(parser, results_dir, include_repeats, split_signals):
-    """Add the arguments shared by all plotting scripts, using the given defaults."""
+def add_common_args(parser, results_dir, include_repeats, split_signals, figure_size):
+    """Add the arguments shared by all results plotting scripts, using the given defaults."""
+    add_figure_size_arg(parser, figure_size)
     parser.add_argument("--results-dir", default=str(results_dir),
                         help="Folder containing the results CSVs (default: %(default)s)")
     parser.add_argument("--include-repeats", default=include_repeats, action=argparse.BooleanOptionalAction,

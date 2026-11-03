@@ -6,9 +6,10 @@ only those used for the listening test stimuli), comparing the passive room, the
 target room and the full optimisation (EnvFOA).
 
 Usage:
-    python plotting/plot_unpleasantness.py
+    python plotting/plot_unpleasantness.py [--figure-size {onecolumn,twocolumn}]
 """
 
+import argparse
 import re
 import sys
 import warnings
@@ -19,7 +20,10 @@ import numpy as np
 from matplotlib.patches import Patch
 from scipy.io import wavfile
 
-from common import CONDITION_COLOURS, GRID_COLOUR
+from common import (
+    CONDITION_COLOURS, CONDITION_LABELS, GRID_COLOUR, add_figure_size_arg, add_legend, apply_figure_style,
+    figure_dimensions,
+)
 
 # Settings
 COMBINATION = "R2T4"                          # Passive/target combination to plot
@@ -34,6 +38,8 @@ NUM_STRESS_TEST_RECEIVERS = 4
 NUM_STRESS_TEST_SOURCES = 2
 DATASET_ROOT = Path("/Volumes/WillFootage/PhD/AAESOptimisationDatasetRIRs")
 MODEL_SRC_DIR = Path(__file__).resolve().parents[2] / "AAESUnpleasantnessModel" / "Src"
+FIGURE_SIZE = "twocolumn"                     # "onecolumn" or "twocolumn" (IEEE Transactions)
+FIGURE_HEIGHT = 2.6                           # Height at twocolumn width (inches)
 
 sys.path.append(str(MODEL_SRC_DIR))
 import Colouration
@@ -42,8 +48,6 @@ import FlutterEcho
 import HFDamping
 import PredictUnpleasantness
 import SDM
-
-CONDITION_LABELS = {"passive": "Passive", "target": "Target", "fulloptim": "Full optimisation"}
 
 METRIC_LABELS = ["Spatial\nAsymmetry", "Flutter\nEcho", "Colouration", "HF\nDamping", "DSE\nCurvature", "Unpleasantness"]
 
@@ -108,7 +112,7 @@ def compute_scores(path):
 def add_overflow_markers(ax, bp, positions):
     """Mark boxes, whiskers or outliers that extend beyond the y-axis limits."""
     low, high = YLIM
-    kw = dict(ms=7, mfc="white", mew=1.5, zorder=6, clip_on=False, color="k")
+    kw = dict(ms=4, mfc="white", mew=0.8, zorder=6, clip_on=False, color="k")
     for i, x in enumerate(positions):
         y = np.concatenate([
             bp["boxes"][i].get_path().vertices[:, 1],
@@ -122,7 +126,8 @@ def add_overflow_markers(ax, bp, positions):
             ax.plot(x, low, marker="v", **kw)
 
 
-def plot(combination, all_scores):
+def plot(combination, all_scores, figure_size=FIGURE_SIZE):
+    apply_figure_style(figure_size)
     conditions = list(all_scores)
     box_spacing = 0.5
     group_width = box_spacing * len(conditions) + 0.25
@@ -137,20 +142,27 @@ def plot(combination, all_scores):
             positions.append(centre + offset)
             colours.append(CONDITION_COLOURS[condition])
 
-    fig, ax = plt.subplots(figsize=(12, 4.5))
+    fig, ax = plt.subplots(figsize=figure_dimensions(FIGURE_HEIGHT), layout="constrained")
     bp = ax.boxplot(data, positions=positions, widths=0.42, patch_artist=True, capwidths=0.3)
     for i, colour in enumerate(colours):
         bp["boxes"][i].set(facecolor=colour, edgecolor=colour)
-        bp["medians"][i].set(color="black", linewidth=1.5)
-        bp["fliers"][i].set(markerfacecolor=colour, markeredgecolor=colour, markersize=4)
+        bp["medians"][i].set(color="black", linewidth=1)
+        bp["fliers"][i].set(markerfacecolor=colour, markeredgecolor=colour, markersize=2)
+    for line in bp["whiskers"] + bp["caps"]:
+        line.set_linewidth(0.8)
     add_overflow_markers(ax, bp, positions)
 
     for boundary in group_centers[:-1] + group_width / 2:
         ax.axvline(boundary, color=GRID_COLOUR, linewidth=0.8, zorder=0)
 
-    ax.set_title(combination, loc="left", fontsize=11)
+    ax.set_title(combination, loc="left")
     ax.set_xticks(group_centers)
-    ax.set_xticklabels(METRIC_LABELS)
+    if figure_size == "onecolumn":
+        # The metric names overlap when the figure fits one column, so angle them on a single line
+        ax.set_xticklabels([label.replace("\n", " ") for label in METRIC_LABELS], rotation=35, ha="right",
+                           rotation_mode="anchor")
+    else:
+        ax.set_xticklabels(METRIC_LABELS)
     ax.set_xlim(group_centers[0] - group_width / 2, group_centers[-1] + group_width / 2)
     ax.set_ylim(YLIM)
     ax.set_ylabel("Score")
@@ -161,20 +173,23 @@ def plot(combination, all_scores):
 
     legend_elements = [Patch(facecolor=CONDITION_COLOURS[c], edgecolor=CONDITION_COLOURS[c], label=CONDITION_LABELS[c])
                        for c in conditions]
-    ax.legend(handles=legend_elements, title="Condition", loc="upper left", bbox_to_anchor=(1.01, 1), frameon=False)
+    add_legend(fig, legend_elements, [h.get_label() for h in legend_elements])
 
-    fig.tight_layout()
     plt.show()
 
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    add_figure_size_arg(parser, FIGURE_SIZE)
+    args = parser.parse_args()
+
     all_scores = {}
     for condition, files in condition_files(COMBINATION, LISTENING_TEST_ONLY, INCLUDE_NON_CENTRAL_POSITIONS).items():
         if not files:
             raise SystemExit(f"No test RIRs found for {CONDITION_LABELS[condition]} ({COMBINATION})")
         print(f"Computing scores for {CONDITION_LABELS[condition]} ({len(files)} files)...")
         all_scores[condition] = np.array([compute_scores(f) for f in files])
-    plot(COMBINATION, all_scores)
+    plot(COMBINATION, all_scores, args.figure_size)
 
 
 if __name__ == "__main__":
