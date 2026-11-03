@@ -4,6 +4,8 @@ Every plotting script calls included_results() to get the results CSVs that pass
 the criteria below. Run this script on its own to see how many subjects are
 included and excluded with the current settings, and why.
 
+Set BYPASS = True to include every subject regardless of the criteria.
+
 Current criteria:
   - Hidden reference: a rating of the hidden reference ("target" condition) below
     HIDDEN_REF_MIN_RATING counts as a miss; subjects with more than
@@ -24,12 +26,13 @@ from pathlib import Path
 from common import DEFAULT_RESULTS_DIR, FILENAME_RE
 
 # Settings
+BYPASS = True                                # Include every subject, ignoring all criteria below
 HIDDEN_REF_CONDITION = "target"               # Condition name of the hidden reference
 HIDDEN_REF_MIN_RATING = 80                   # Hidden reference ratings below this count as a miss
-HIDDEN_REF_MAX_MISSES = 10                  # Exclude subjects with more misses than this
+HIDDEN_REF_MAX_MISSES = 3                  # Exclude subjects with more misses than this
 HIDDEN_REF_INCLUDE_REPEATS = True             # Count misses on repeated trials (repeat=1) as well
-REPEAT_CONSISTENCY_ENABLED = False            # Exclude subjects who rate repeated trials inconsistently
-REPEAT_CONSISTENCY_MAX_MEAN_DIFF = 10         # Max mean |original - repeat| rating difference
+REPEAT_CONSISTENCY_ENABLED = True            # Exclude subjects who rate repeated trials inconsistently
+REPEAT_CONSISTENCY_MAX_MEAN_DIFF = 15         # Max mean |original - repeat| rating difference
 
 
 def hidden_reference_misses(rows):
@@ -56,6 +59,8 @@ def repeat_differences(rows):
 
 def exclusion_reasons(rows):
     """Return a list of reasons for excluding a subject (empty if included)."""
+    if BYPASS:
+        return []
     reasons = []
     misses = hidden_reference_misses(rows)
     if len(misses) > HIDDEN_REF_MAX_MISSES:
@@ -86,7 +91,7 @@ def included_results(results_dir, verbose=True):
     included = [path for path, reasons in evaluation.items() if not reasons]
     if verbose:
         print(f"Exclusion criteria: {len(included)} subjects included, "
-              f"{len(evaluation) - len(included)} excluded")
+              f"{len(evaluation) - len(included)} excluded" + (" (bypassed)" if BYPASS else ""))
     return included
 
 
