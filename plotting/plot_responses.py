@@ -72,7 +72,7 @@ def plot(ratings, figure_size=FIGURE_SIZE):
 
     set_combination_ticks(axes[-1], x, combinations, figure_size)
     axes[-1].set_xlim(-0.5, len(combinations) - 0.5)
-    axes[-1].set_xlabel("Passive/target combination")
+    axes[-1].set_xlabel("Installation (R) and target (T) room combination")
     legend = add_legend(fig, *axes[0].get_legend_handles_labels())
     for handle in legend.legend_handles:
         handle.set_alpha(1)

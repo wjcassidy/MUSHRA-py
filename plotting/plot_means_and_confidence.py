@@ -27,14 +27,30 @@ INCLUDE_REPEATS = False                       # Include repeated trials (repeat=
 SPLIT_SIGNALS = False                         # One panel per excitation signal; False pools all signals
 SHOW_ERROR_BARS = True                        # Draw 95% confidence interval error bars around the means
 FIGURE_SIZE = "twocolumn"                     # "onecolumn" or "twocolumn" (IEEE Transactions)
-PANEL_HEIGHT = 1.8                            # Height of each panel at twocolumn width (inches)
+PANEL_HEIGHT = 1.7                            # Height of each panel at twocolumn width (inches)
+SORT_CONDITION = "fulloptim"                  # Order combinations by decreasing mean rating of this condition
+RATING_LABELS = [                             # Y-axis labels, top (100) to bottom (0), equally spaced
+    "Sounds the same", "Very similar", "Similar", "Somewhat similar", "Not at all similar",
+]
+
+
+def sort_by_condition_mean(ratings, signals, combinations, condition):
+    """Return the combinations ordered by decreasing mean rating of the given condition, pooled over
+    all signals so that every panel shares the same order. Combinations without that condition go last.
+    """
+    def key(combination):
+        values = [v for s in signals for v in ratings[s][combination].get(condition, [])]
+        return -np.mean(values) if values else np.inf
+
+    return sorted(combinations, key=key)
 
 
 def plot(ratings, show_error_bars=True, figure_size=FIGURE_SIZE):
     apply_figure_style(figure_size)
     signals, combinations, conditions = plot_layout(ratings)
+    combinations = sort_by_condition_mean(ratings, signals, combinations, SORT_CONDITION)
 
-    x = np.arange(len(combinations))
+    x =np.arange(len(combinations))
     offset_step = 0.18
     offsets = (np.arange(len(conditions)) - (len(conditions) - 1) / 2) * offset_step
 
@@ -66,12 +82,13 @@ def plot(ratings, show_error_bars=True, figure_size=FIGURE_SIZE):
             ax.axvline(boundary, color=GRID_COLOUR, linewidth=0.8, zorder=0)
 
         style_axis(ax, signal, r"Rating (mean $\pm$ 95\% CI)" if show_error_bars else "Rating (mean)")
+        ax.set_yticks(np.linspace(0, 100, len(RATING_LABELS)), RATING_LABELS[::-1])
 
     set_combination_ticks(axes[-1], x, combinations, figure_size)
     axes[-1].set_xlim(-0.5, len(combinations) - 0.5)
     axes[-1].set_ylim(0, 105)
-    axes[-1].set_xlabel("Passive/target combination")
-    add_legend(fig, *axes[0].get_legend_handles_labels())
+    axes[-1].set_xlabel("Installation (R) and target (T) room combination")
+    add_legend(fig, *axes[0].get_legend_handles_labels(), top=True)
 
     plt.show()
 

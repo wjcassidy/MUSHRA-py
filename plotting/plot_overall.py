@@ -100,7 +100,7 @@ def plot(ratings, show_error_bars=True, distribution=DISTRIBUTION, figure_size=F
         ax.axvline(boundary, color=GRID_COLOUR, linewidth=0.8, zorder=0)
 
     summary = r"mean $\pm$ 95\% CI" if show_error_bars else "mean"
-    style_axis(ax, "All passive/target combinations", f"Rating ({DISTRIBUTION_LABELS[distribution]}, {summary})")
+    style_axis(ax, "All installation (R) and target (T) room combinations", f"Rating ({DISTRIBUTION_LABELS[distribution]}, {summary})")
     ax.set_xticks(x)
     ax.set_xticklabels([SIGNAL_NAMES.get(s, s) for s in signals])
     ax.set_xlim(-0.5, len(signals) - 0.5)

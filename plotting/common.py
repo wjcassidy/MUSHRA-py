@@ -16,7 +16,7 @@ DEFAULT_RESULTS_DIR = REPO_ROOT / "results"
 FILENAME_RE = re.compile(r"^(R\d+T\d+)_([^_]+)_([^_]+)\.wav$")
 
 # Panel title used when ratings are pooled across excitation signals
-ALL_SIGNALS = "All signals"
+ALL_SIGNALS = None
 # Display names for the excitation signal names used in the stimulus filenames
 SIGNAL_NAMES = {"Beet": "Classical", "Hand": "Handclaps", "Slow": "Pop"}
 
@@ -97,11 +97,13 @@ def set_combination_ticks(ax, x, combinations, figure_size):
     ax.set_xticklabels(combinations, rotation=90 if figure_size == "onecolumn" and len(combinations) > 8 else 0)
 
 
-def add_legend(fig, handles, labels, title="Condition"):
-    """Add a figure legend to the right of the axes.
+def add_legend(fig, handles, labels, title="Condition", top=False):
+    """Add a figure legend to the right of the axes, or above them on a single row if top is True.
 
     The figure must use the constrained layout so the legend's space is reserved.
     """
+    if top:
+        return fig.legend(handles, labels, loc="outside upper center", ncols=len(handles), frameon=False)
     return fig.legend(handles, labels, title=title, loc="outside right upper", frameon=False)
 
 
