@@ -47,7 +47,13 @@ def group_ratings(ratings, signals, combinations, conditions):
     """Return [(label, {condition: [ratings]})] for each x-axis group, pooled over the combinations.
 
     When the ratings are split by signal, a group pooling all signals is added first.
+    Each label is prefixed with a letter ("a.", "b.", ...) in left-to-right order.
     """
+    groups = _group_ratings(ratings, signals, combinations, conditions)
+    return [(f"{chr(ord('a') + i)}. {label}", group) for i, (label, group) in enumerate(groups)]
+
+
+def _group_ratings(ratings, signals, combinations, conditions):
     groups = {}
     for signal in signals:
         groups[signal] = {condition: [v for combination in combinations
