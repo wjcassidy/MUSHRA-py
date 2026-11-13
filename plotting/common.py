@@ -47,11 +47,15 @@ FIGURE_SIZES = {
 CANVAS_WIDTH = FIGURE_SIZES["twocolumn"]["width"]
 
 
-def apply_figure_style(figure_size):
-    """Set the matplotlib style (LaTeX text in Times, font sizes, DPI) for a figure size."""
+def apply_figure_style(figure_size, actual_width=False):
+    """Set the matplotlib style (LaTeX text in Times, font sizes, DPI) for a figure size.
+
+    If actual_width is True, the figure is laid out at its printed width (see figure_dimensions)
+    rather than on the twocolumn canvas, so its markers and line widths print at their nominal size.
+    """
     spec = FIGURE_SIZES[figure_size]
     # How much the figure is scaled when included in the paper
-    scale = spec["width"] / CANVAS_WIDTH
+    scale = 1 if actual_width else spec["width"] / CANVAS_WIDTH
     font_size = spec["font_size"] / scale
     small_font_size = spec["small_font_size"] / scale
     plt.rcParams.update({
@@ -73,14 +77,19 @@ def apply_figure_style(figure_size):
         "ytick.major.width": 0.6,
         "xtick.major.size": 3,
         "ytick.major.size": 3,
+        # Display at the print resolution too, so an image saved or copied from the plot viewer has it
         "savefig.dpi": spec["dpi"] * scale,
-        "figure.dpi": 150,
+        "figure.dpi": spec["dpi"] * scale,
     })
     return spec
 
 
-def figure_dimensions(height):
-    """Return the (width, height) in inches of the canvas every figure is laid out on."""
+def figure_dimensions(height, actual_width_of=None):
+    """Return the (width, height) in inches of the canvas every figure is laid out on, or of the
+    printed figure size actual_width_of (see apply_figure_style's actual_width).
+    """
+    if actual_width_of is not None:
+        return FIGURE_SIZES[actual_width_of]["width"], height
     return CANVAS_WIDTH, height
 
 
@@ -97,14 +106,15 @@ def set_combination_ticks(ax, x, combinations, figure_size):
     ax.set_xticklabels(combinations, rotation=90 if figure_size == "onecolumn" and len(combinations) > 8 else 0)
 
 
-def add_legend(fig, handles, labels, title="Condition", top=False):
+def add_legend(fig, handles, labels, title="Condition", top=False, **kwargs):
     """Add a figure legend to the right of the axes, or above them on a single row if top is True.
 
-    The figure must use the constrained layout so the legend's space is reserved.
+    The figure must use the constrained layout so the legend's space is reserved. Extra keyword
+    arguments are passed to fig.legend.
     """
     if top:
-        return fig.legend(handles, labels, loc="outside upper center", ncols=len(handles), frameon=False)
-    return fig.legend(handles, labels, title=title, loc="outside right upper", frameon=False)
+        return fig.legend(handles, labels, loc="outside upper center", ncols=len(handles), frameon=False, **kwargs)
+    return fig.legend(handles, labels, title=title, loc="outside right upper", frameon=False, **kwargs)
 
 
 def load_ratings(paths, include_repeats, split_signals=True):

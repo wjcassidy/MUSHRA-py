@@ -3,7 +3,7 @@ test RIRs for one passive/target combination (e.g. R1T5).
 
 Each box pools all test source/receiver combinations (or, with LISTENING_TEST_ONLY,
 only those used for the listening test stimuli), comparing the passive room, the
-target room and the full optimisation (EnvFOA).
+target room, the full optimisation (EnvFOA) and the graphic EQ baseline (GEQBaseline).
 
 Usage:
     python plotting/plot_unpleasantness.py [--figure-size {onecolumn,twocolumn}]
@@ -26,7 +26,7 @@ from common import (
 )
 
 # Settings
-COMBINATION = "R2T4"                          # Passive/target combination to plot
+COMBINATION = "R2T2"                          # Passive/target combination to plot
 LISTENING_TEST_ONLY = False                   # Only the source/receiver RIRs convolved with the excitations
 # 0-indexed, as in the optimisation outputs (the dataset H_SR_TEST files are 1-indexed). Matches
 # PyRES-ClosedLoop/examples/convolve_*_irs_with_excitation.py, pooling the sources of all excitations
@@ -39,7 +39,7 @@ NUM_STRESS_TEST_SOURCES = 2
 DATASET_ROOT = Path("/Volumes/WillFootage/PhD/AAESOptimisationDatasetRIRs")
 MODEL_SRC_DIR = Path(__file__).resolve().parents[2] / "AAESUnpleasantnessModel" / "Src"
 FIGURE_SIZE = "twocolumn"                     # "onecolumn" or "twocolumn" (IEEE Transactions)
-FIGURE_HEIGHT = 2.6                           # Height at twocolumn width (inches)
+FIGURE_HEIGHT = 2.0                           # Height at twocolumn width (inches)
 
 sys.path.append(str(MODEL_SRC_DIR))
 import Colouration
@@ -79,6 +79,7 @@ def condition_files(combination, listening_test_only=False, include_non_central_
         "passive": (dataset_dir / f"aaes_optimisation_dataset_room_{room}", "H_SR_TEST_R{r}_S{s}.wav", 1),
         "target": (dataset_dir / f"aaes_optimisation_dataset_target_room_{target}", "H_SR_TEST_R{r}_S{s}.wav", 1),
         "fulloptim": (DATASET_ROOT / "Optimisation Results" / combination / "EnvFOA", "opt_ambi_test_R{r}_S{s}.wav", 0),
+        "geq": (DATASET_ROOT / "Optimisation Results" / combination / "GEQBaseline", "opt_ambi_test_R{r}_S{s}.wav", 0),
     }
     files = {}
     for condition, (directory, pattern, index_offset) in dirs_and_patterns.items():
@@ -126,7 +127,7 @@ def add_overflow_markers(ax, bp, positions):
             ax.plot(x, low, marker="v", **kw)
 
 
-def plot(combination, all_scores, figure_size=FIGURE_SIZE):
+def plot(all_scores, figure_size=FIGURE_SIZE):
     apply_figure_style(figure_size)
     conditions = list(all_scores)
     box_spacing = 0.5
@@ -134,19 +135,21 @@ def plot(combination, all_scores, figure_size=FIGURE_SIZE):
     group_centers = np.arange(len(METRIC_LABELS)) * group_width
     offsets = (np.arange(len(conditions)) - (len(conditions) - 1) / 2) * box_spacing
 
-    data, positions, colours = [], [], []
+    data, positions, colours, box_conditions = [], [], [], []
     for metric_index, centre in enumerate(group_centers):
         for condition, offset in zip(conditions, offsets):
             column = all_scores[condition][:, metric_index]
             data.append(column[np.isfinite(column)])
             positions.append(centre + offset)
             colours.append(CONDITION_COLOURS[condition])
+            box_conditions.append(condition)
 
     fig, ax = plt.subplots(figsize=figure_dimensions(FIGURE_HEIGHT), layout="constrained")
     bp = ax.boxplot(data, positions=positions, widths=0.42, patch_artist=True, capwidths=0.3)
-    for i, colour in enumerate(colours):
+    for i, (colour, condition) in enumerate(zip(colours, box_conditions)):
         bp["boxes"][i].set(facecolor=colour, edgecolor=colour)
-        bp["medians"][i].set(color="black", linewidth=1)
+        # White on the dark target colour so the median stays visible
+        bp["medians"][i].set(color="white" if condition == "target" else "black", linewidth=1)
         bp["fliers"][i].set(markerfacecolor=colour, markeredgecolor=colour, markersize=2)
     for line in bp["whiskers"] + bp["caps"]:
         line.set_linewidth(0.8)
@@ -155,7 +158,6 @@ def plot(combination, all_scores, figure_size=FIGURE_SIZE):
     for boundary in group_centers[:-1] + group_width / 2:
         ax.axvline(boundary, color=GRID_COLOUR, linewidth=0.8, zorder=0)
 
-    ax.set_title(combination, loc="left")
     ax.set_xticks(group_centers)
     if figure_size == "onecolumn":
         # The metric names overlap when the figure fits one column, so angle them on a single line
@@ -165,7 +167,7 @@ def plot(combination, all_scores, figure_size=FIGURE_SIZE):
         ax.set_xticklabels(METRIC_LABELS)
     ax.set_xlim(group_centers[0] - group_width / 2, group_centers[-1] + group_width / 2)
     ax.set_ylim(YLIM)
-    ax.set_ylabel("Score")
+    ax.set_ylabel("Severity")
     ax.yaxis.grid(True, color=GRID_COLOUR, linewidth=0.8)
     ax.set_axisbelow(True)
     for spine in ("top", "right"):
@@ -173,7 +175,10 @@ def plot(combination, all_scores, figure_size=FIGURE_SIZE):
 
     legend_elements = [Patch(facecolor=CONDITION_COLOURS[c], edgecolor=CONDITION_COLOURS[c], label=CONDITION_LABELS[c])
                        for c in conditions]
-    add_legend(fig, legend_elements, [h.get_label() for h in legend_elements])
+    # Tighter spacing so the single-row legend fits the onecolumn width, and sits close to the axes
+    add_legend(fig, legend_elements, [h.get_label() for h in legend_elements], top=True, columnspacing=1.0,
+               handletextpad=0.3, borderpad=0, borderaxespad=0.2)
+    fig.get_layout_engine().set(h_pad=0)
 
     plt.show()
 
@@ -189,7 +194,7 @@ def main():
             raise SystemExit(f"No test RIRs found for {CONDITION_LABELS[condition]} ({COMBINATION})")
         print(f"Computing scores for {CONDITION_LABELS[condition]} ({len(files)} files)...")
         all_scores[condition] = np.array([compute_scores(f) for f in files])
-    plot(COMBINATION, all_scores, args.figure_size)
+    plot(all_scores, args.figure_size)
 
 
 if __name__ == "__main__":

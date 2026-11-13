@@ -1,12 +1,14 @@
 """Plot the early reflections of the echograms of the passive room, the target room
 and the full optimisation (EnvFOA) for the listening test source/receiver position.
 
-Each column is one passive/target combination. Echograms use the W channel, with
+Each column is one passive/target combination, titled with the mean MUSHRA rating of the
+full optimisation for that combination. Echograms use the W channel, with
 time and level relative to the direct sound, as the rooms have different
 source/receiver distances and the RIRs have different gains.
 
 Usage:
-    python plotting/plot_early_reflections.py [--figure-size {onecolumn,twocolumn}]
+    python plotting/plot_early_reflections.py [--figure-size {onecolumn,twocolumn}] [--results-dir DIR]
+                                              [--[no-]include-repeats]
 """
 
 import argparse
@@ -17,8 +19,10 @@ import numpy as np
 from scipy.io import wavfile
 
 from common import (
-    CONDITION_COLOURS, CONDITION_LABELS, GRID_COLOUR, add_figure_size_arg, apply_figure_style, figure_dimensions,
+    ALL_SIGNALS, CONDITION_COLOURS, CONDITION_LABELS, DEFAULT_RESULTS_DIR, GRID_COLOUR, add_figure_size_arg,
+    apply_figure_style, figure_dimensions, load_ratings,
 )
+from exclusion_criteria import included_results
 
 # Settings
 COMBINATIONS = ["R2T2", "R2T4"]               # Passive/target combinations to plot
@@ -28,7 +32,7 @@ COMBINATIONS = ["R2T2", "R2T4"]               # Passive/target combinations to p
 LISTENING_TEST_RECEIVER = 1
 LISTENING_TEST_SOURCE = 3
 TIME_LIMITS_MS = (-2, 30)                    # Time window, relative to the direct sound
-LEVEL_LIMITS_DB = (-40, 6)                    # Level range, relative to the direct sound
+LEVEL_LIMITS_DB = (-25, 6)                    # Level range, relative to the direct sound
 # The direct sound is the first arrival within this range of the RIR's peak. The peak alone isn't
 # enough, as an early reflection can be stronger than the direct sound (e.g. R2T4, S3)
 DIRECT_SOUND_THRESHOLD_DB = -12
@@ -38,6 +42,9 @@ FIGURE_SIZE = "onecolumn"                     # "onecolumn" or "twocolumn" (IEEE
 ROW_HEIGHT = 1.2                              # Height of each row at twocolumn width (inches)
 
 CONDITIONS = ["passive", "target", "fulloptim"]  # One row per condition, in this order
+RESULTS_DIR = DEFAULT_RESULTS_DIR             # Folder containing the results CSVs
+INCLUDE_REPEATS = False                       # Include repeated trials (repeat=1) in the mean ratings
+RATING_CONDITION = "fulloptim"                # Condition whose mean rating titles each column (pooled over signals)
 
 
 def condition_files(combination):
@@ -67,7 +74,7 @@ def echogram(path):
     return times, levels
 
 
-def plot(echograms, figure_size=FIGURE_SIZE):
+def plot(echograms, mean_ratings, figure_size=FIGURE_SIZE):
     apply_figure_style(figure_size)
     combinations = list(echograms)
     conditions = CONDITIONS
@@ -76,12 +83,18 @@ def plot(echograms, figure_size=FIGURE_SIZE):
         figsize=figure_dimensions(ROW_HEIGHT * len(conditions) + 0.6),
     )
     for column, combination in enumerate(combinations):
+        # Column title, above the top row's own (left-aligned) title
+        axes[0, column].annotate(
+            rf"Mean Rating: {mean_ratings[combination]:.0f}\%", xy=(0.5, 1), xycoords="axes fraction",
+            xytext=(0, 1.6 * plt.rcParams["axes.titlesize"]), textcoords="offset points", ha="center",
+            va="bottom", fontsize=plt.rcParams["axes.titlesize"], annotation_clip=False,
+        ).set_in_layout(True)
         for row, condition in enumerate(conditions):
             ax = axes[row, column]
             times, levels = echograms[combination][condition]
             visible = (times >= TIME_LIMITS_MS[0]) & (times <= TIME_LIMITS_MS[1])
             ax.fill_between(times[visible], LEVEL_LIMITS_DB[0], levels[visible], color=CONDITION_COLOURS[condition],
-                            linewidth=0.3)
+                            linewidth=1.5)
             ax.set_title(f"{combination}: {CONDITION_LABELS[condition]}", loc="left")
             ax.yaxis.grid(True, color=GRID_COLOUR, linewidth=0.8)
             ax.set_axisbelow(True)
@@ -90,7 +103,7 @@ def plot(echograms, figure_size=FIGURE_SIZE):
 
     axes[0, 0].set_xlim(TIME_LIMITS_MS)
     axes[0, 0].set_ylim(LEVEL_LIMITS_DB)
-    fig.supylabel("Level (dB re direct)")
+    fig.supylabel("Magnitude (dB)")
     fig.supxlabel("Time after direct sound (ms)")
 
     plt.show()
@@ -99,12 +112,20 @@ def plot(echograms, figure_size=FIGURE_SIZE):
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     add_figure_size_arg(parser, FIGURE_SIZE)
+    parser.add_argument("--results-dir", default=str(RESULTS_DIR),
+                        help="Folder containing the results CSVs (default: %(default)s)")
+    parser.add_argument("--include-repeats", default=INCLUDE_REPEATS, action=argparse.BooleanOptionalAction,
+                        help="Include repeated trials (repeat=1) in the mean ratings (default: %(default)s)")
     args = parser.parse_args()
+
+    ratings = load_ratings(included_results(args.results_dir), args.include_repeats, split_signals=False)
+    mean_ratings = {combination: np.mean(ratings[ALL_SIGNALS][combination][RATING_CONDITION])
+                    for combination in COMBINATIONS}
 
     echograms = {}
     for combination in COMBINATIONS:
         echograms[combination] = {condition: echogram(path) for condition, path in condition_files(combination).items()}
-    plot(echograms, args.figure_size)
+    plot(echograms, mean_ratings, args.figure_size)
 
 
 if __name__ == "__main__":
