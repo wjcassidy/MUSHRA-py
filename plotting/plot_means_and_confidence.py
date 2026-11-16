@@ -88,7 +88,9 @@ def plot(ratings, show_error_bars=True, figure_size=FIGURE_SIZE):
     axes[-1].set_xlim(-0.5, len(combinations) - 0.5)
     axes[-1].set_ylim(0, 105)
     axes[-1].set_xlabel("Installation (R) and target (T) room combination")
-    add_legend(fig, *axes[0].get_legend_handles_labels(), top=True)
+    handles, labels = axes[0].get_legend_handles_labels()
+    labels = [f"{chr(ord('a') + i)}. {label}" for i, label in enumerate(labels)]
+    add_legend(fig, handles, labels, top=True)
 
     plt.show()
 
