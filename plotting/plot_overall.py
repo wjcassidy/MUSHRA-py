@@ -145,6 +145,8 @@ def plot_panel(ax, groups, conditions, offsets, distribution, show_error_bars, v
             xs.append(centre)
             means.append(mean)
             errors.append(half_width)
+
+            print(f"Mean for {condition}: {mean}")
         ax.errorbar(
             xs, means, yerr=errors if show_error_bars else None,
             fmt=marker, color=colour, markeredgecolor="white", markeredgewidth=0.6,
