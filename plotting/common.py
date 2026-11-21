@@ -113,7 +113,8 @@ def add_legend(fig, handles, labels, title="Condition", top=False, **kwargs):
     arguments are passed to fig.legend.
     """
     if top:
-        return fig.legend(handles, labels, loc="outside upper center", ncols=len(handles), frameon=False, **kwargs)
+        kwargs.setdefault("ncols", len(handles))
+        return fig.legend(handles, labels, loc="outside upper center", frameon=False, **kwargs)
     return fig.legend(handles, labels, title=title, loc="outside right upper", frameon=False, **kwargs)
 
 
@@ -138,12 +139,14 @@ def load_ratings(paths, include_repeats, split_signals=True):
     return ratings
 
 
-def mean_ci95(values):
+def mean_ci(values, confidence=95):
+    """Return the mean and the half-width of its two-sided t-distribution confidence interval,
+    with the confidence level given as a percentage."""
     values = np.asarray(values)
     mean = values.mean()
     if len(values) < 2:
         return mean, 0.0
-    half_width = stats.t.ppf(0.975, len(values) - 1) * stats.sem(values)
+    half_width = stats.t.ppf(0.5 + confidence / 200, len(values) - 1) * stats.sem(values)
     return mean, half_width
 
 

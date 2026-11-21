@@ -21,7 +21,7 @@ import numpy as np
 
 from common import (
     ALL_SIGNALS, CONDITION_COLOURS, CONDITION_LABELS, CONDITION_MARKERS, DEFAULT_RESULTS_DIR, GRID_COLOUR, SIGNAL_NAMES,
-    add_common_args, add_legend, apply_figure_style, figure_dimensions, load_ratings, mean_ci95, plot_layout,
+    add_common_args, add_legend, apply_figure_style, figure_dimensions, load_ratings, mean_ci, plot_layout,
     style_axis,
 )
 from exclusion_criteria import included_results
@@ -31,7 +31,7 @@ RESULTS_DIR = DEFAULT_RESULTS_DIR             # Folder containing the results CS
 INCLUDE_REPEATS = False                       # Include repeated trials (repeat=1)
 SPLIT_SIGNALS = True                          # One group per excitation signal; False pools all signals
 SHOW_ERROR_BARS = False                        # Draw 95% confidence interval error bars around the means
-DISTRIBUTION = "box"                       # How to show the ratings: "points", "violin" or "box"
+DISTRIBUTION = "points"                       # How to show the ratings: "points", "violin" or "box"
 DISTRIBUTIONS = ["points", "violin", "box"]
 DISTRIBUTION_LABELS = {"points": "responses", "violin": "violin", "box": "box"}
 BOX_WIDTH = 0.15                              # Box width (x units; boxes are 0.2 apart, so this leaves a small gap)
@@ -141,7 +141,7 @@ def plot_panel(ax, groups, conditions, offsets, distribution, show_error_bars, v
                 # The density estimate is undefined when every rating is identical, so draw a flat line
                 ax.plot([centre - violin_width / 2, centre + violin_width / 2], [values[0], values[0]],
                         color=colour, alpha=0.6, linewidth=1.2, zorder=1)
-            mean, half_width = mean_ci95(values)
+            mean, half_width = mean_ci(values)
             xs.append(centre)
             means.append(mean)
             errors.append(half_width)
