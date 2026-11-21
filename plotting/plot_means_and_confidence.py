@@ -1,4 +1,4 @@
-"""Plot mean ratings with 95% confidence intervals for each passive/target
+"""Plot mean ratings with confidence intervals (99% by default) for each passive/target
 combination (e.g. R1T5) in the MUSHRA results CSVs.
 
 Defaults are set in the settings block below; command-line arguments override them.
@@ -6,6 +6,7 @@ Defaults are set in the settings block below; command-line arguments override th
 Usage:
     python plotting/plot_means_and_confidence.py [--results-dir DIR] [--[no-]include-repeats]
                                                  [--[no-]split-signals] [--[no-]error-bars]
+                                                 [--confidence-level PERCENT]
                                                  [--figure-size {onecolumn,twocolumn}]
 """
 
@@ -16,7 +17,7 @@ import numpy as np
 
 from common import (
     CONDITION_COLOURS, CONDITION_LABELS, CONDITION_MARKERS, DEFAULT_RESULTS_DIR, GRID_COLOUR,
-    add_common_args, add_legend, set_combination_ticks, apply_figure_style, figure_dimensions, load_ratings, mean_ci95, plot_layout,
+    add_common_args, add_legend, set_combination_ticks, apply_figure_style, figure_dimensions, load_ratings, mean_ci, plot_layout,
     style_axis,
 )
 from exclusion_criteria import included_results
@@ -25,7 +26,8 @@ from exclusion_criteria import included_results
 RESULTS_DIR = DEFAULT_RESULTS_DIR             # Folder containing the results CSVs
 INCLUDE_REPEATS = False                       # Include repeated trials (repeat=1)
 SPLIT_SIGNALS = False                         # One panel per excitation signal; False pools all signals
-SHOW_ERROR_BARS = True                        # Draw 95% confidence interval error bars around the means
+SHOW_ERROR_BARS = True                        # Draw confidence interval error bars around the means
+CONFIDENCE_LEVEL = 99                         # Confidence level of the error bars (%)
 FIGURE_SIZE = "twocolumn"                     # "onecolumn" or "twocolumn" (IEEE Transactions)
 PANEL_HEIGHT = 1.7                            # Height of each panel at twocolumn width (inches)
 SORT_CONDITION = "fulloptim"                  # Order combinations by decreasing mean rating of this condition
@@ -45,7 +47,7 @@ def sort_by_condition_mean(ratings, signals, combinations, condition):
     return sorted(combinations, key=key)
 
 
-def plot(ratings, show_error_bars=True, figure_size=FIGURE_SIZE):
+def plot(ratings, show_error_bars=True, figure_size=FIGURE_SIZE, confidence_level=CONFIDENCE_LEVEL):
     apply_figure_style(figure_size)
     signals, combinations, conditions = plot_layout(ratings)
     combinations = sort_by_condition_mean(ratings, signals, combinations, SORT_CONDITION)
@@ -66,7 +68,7 @@ def plot(ratings, show_error_bars=True, figure_size=FIGURE_SIZE):
                 values = ratings[signal][combination].get(condition)
                 if not values:
                     continue
-                mean, half_width = mean_ci95(values)
+                mean, half_width = mean_ci(values, confidence_level)
                 xs.append(x[i] + offset)
                 means.append(mean)
                 errors.append(half_width)
@@ -81,7 +83,7 @@ def plot(ratings, show_error_bars=True, figure_size=FIGURE_SIZE):
         for boundary in x[:-1] + 0.5:
             ax.axvline(boundary, color=GRID_COLOUR, linewidth=0.8, zorder=0)
 
-        style_axis(ax, signal, r"Rating (mean $\pm$ 95\% CI)" if show_error_bars else "Rating (mean)")
+        style_axis(ax, signal, rf"Rating (mean $\pm$ {confidence_level:g}\% CI)" if show_error_bars else "Rating (mean)")
         ax.set_yticks(np.linspace(0, 100, len(RATING_LABELS)), RATING_LABELS[::-1])
 
     set_combination_ticks(axes[-1], x, combinations, figure_size)
@@ -100,14 +102,18 @@ def main():
     add_common_args(parser, RESULTS_DIR, INCLUDE_REPEATS, SPLIT_SIGNALS, FIGURE_SIZE)
     parser.add_argument("--error-bars", dest="show_error_bars", default=SHOW_ERROR_BARS,
                         action=argparse.BooleanOptionalAction,
-                        help="Draw 95%% confidence interval error bars around the means (default: %(default)s)")
+                        help="Draw confidence interval error bars around the means (default: %(default)s)")
+    parser.add_argument("--confidence-level", type=float, default=CONFIDENCE_LEVEL, metavar="PERCENT",
+                        help="Confidence level of the error bars, as a percentage (default: %(default)s)")
     args = parser.parse_args()
 
     results = included_results(args.results_dir)
     ratings = load_ratings(results, args.include_repeats, args.split_signals)
     if not ratings:
         raise SystemExit(f"No results found in {args.results_dir}")
-    plot(ratings, args.show_error_bars, args.figure_size)
+    if not 0 < args.confidence_level < 100:
+        parser.error("--confidence-level must be between 0 and 100")
+    plot(ratings, args.show_error_bars, args.figure_size, args.confidence_level)
 
 
 if __name__ == "__main__":
