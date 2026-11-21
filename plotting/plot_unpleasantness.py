@@ -26,7 +26,7 @@ from common import (
 )
 
 # Settings
-COMBINATION = "R3T5"                          # Passive/target combination to plot
+COMBINATION = "R1T5"                          # Passive/target combination to plot
 LISTENING_TEST_ONLY = False                   # Only the source/receiver RIRs convolved with the excitations
 # 0-indexed, as in the optimisation outputs (the dataset H_SR_TEST files are 1-indexed). Matches
 # PyRES-ClosedLoop/examples/convolve_*_irs_with_excitation.py, pooling the sources of all excitations
@@ -38,7 +38,7 @@ LISTENING_TEST_SOURCES = [0, 1, 2, 3]
 #   "all"              - every receiver x every source
 #   "stress_receivers" - stress-test receivers x standard sources
 #   "stress_sources"   - standard receivers x stress-test sources
-POSITIONS = "stress_receivers"
+POSITIONS = "central"
 NUM_STRESS_TEST_RECEIVERS = 4
 NUM_STRESS_TEST_SOURCES = 2
 DATASET_ROOT = Path("/Volumes/WillFootage/PhD/AAESOptimisationDatasetRIRs")
@@ -148,6 +148,16 @@ def add_overflow_markers(ax, bp, positions):
             ax.plot(x, low, marker="v", **kw)
 
 
+def print_box_statistics(data, box_conditions, num_conditions):
+    """Print the median and maximum of each box, grouped by metric."""
+    for metric_index, metric in enumerate(METRIC_LABELS):
+        print(f"\n{metric.replace(chr(10), ' ')}:")
+        for i in range(metric_index * num_conditions, (metric_index + 1) * num_conditions):
+            values = data[i]
+            median, maximum = (np.median(values), np.max(values)) if values.size else (np.nan, np.nan)
+            print(f"  {CONDITION_LABELS[box_conditions[i]]:<20} median = {median:.3f}, max = {maximum:.3f}")
+
+
 def plot(all_scores, figure_size=FIGURE_SIZE):
     apply_figure_style(figure_size)
     conditions = list(all_scores)
@@ -175,6 +185,7 @@ def plot(all_scores, figure_size=FIGURE_SIZE):
     for line in bp["whiskers"] + bp["caps"]:
         line.set_linewidth(0.8)
     add_overflow_markers(ax, bp, positions)
+    print_box_statistics(data, box_conditions, len(conditions))
 
     for boundary in group_centers[:-1] + group_width / 2:
         ax.axvline(boundary, color=GRID_COLOUR, linewidth=0.8, zorder=0)
