@@ -27,7 +27,7 @@ RESULTS_DIR = DEFAULT_RESULTS_DIR             # Folder containing the results CS
 INCLUDE_REPEATS = False                       # Include repeated trials (repeat=1)
 SPLIT_SIGNALS = False                         # One panel per excitation signal; False pools all signals
 SHOW_ERROR_BARS = True                        # Draw confidence interval error bars around the means
-CONFIDENCE_LEVEL = 99                         # Confidence level of the error bars (%)
+CONFIDENCE_LEVEL = 95                         # Confidence level of the error bars (%)
 FIGURE_SIZE = "twocolumn"                     # "onecolumn" or "twocolumn" (IEEE Transactions)
 PANEL_HEIGHT = 1.7                            # Height of each panel at twocolumn width (inches)
 SORT_CONDITION = "fulloptim"                  # Order combinations by decreasing mean rating of this condition

@@ -31,7 +31,7 @@ RESULTS_DIR = DEFAULT_RESULTS_DIR             # Folder containing the results CS
 INCLUDE_REPEATS = False                       # Include repeated trials (repeat=1)
 SPLIT_SIGNALS = True                          # One group per excitation signal; False pools all signals
 SHOW_ERROR_BARS = False                        # Draw 95% confidence interval error bars around the means
-DISTRIBUTION = "points"                       # How to show the ratings: "points", "violin" or "box"
+DISTRIBUTION = "box"                       # How to show the ratings: "points", "violin" or "box"
 DISTRIBUTIONS = ["points", "violin", "box"]
 DISTRIBUTION_LABELS = {"points": "responses", "violin": "violin", "box": "box"}
 BOX_WIDTH = 0.15                              # Box width (x units; boxes are 0.2 apart, so this leaves a small gap)

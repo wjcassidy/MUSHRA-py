@@ -26,7 +26,7 @@ from common import (
 )
 
 # Settings
-COMBINATION = "R1T5"                          # Passive/target combination to plot
+COMBINATION = "R2T4"                          # Passive/target combination to plot
 LISTENING_TEST_ONLY = False                   # Only the source/receiver RIRs convolved with the excitations
 # 0-indexed, as in the optimisation outputs (the dataset H_SR_TEST files are 1-indexed). Matches
 # PyRES-ClosedLoop/examples/convolve_*_irs_with_excitation.py, pooling the sources of all excitations
