@@ -22,7 +22,7 @@ SIGNAL_NAMES = {"Beet": "Classical", "Hand": "Handclaps", "Slow": "Pop"}
 
 CONDITIONS = ["target", "fulloptim", "geq", "passive"]
 # Display names for the condition names used in the stimulus filenames
-CONDITION_LABELS = {"target": "Target", "fulloptim": "Full Optim.", "geq": "Graphic EQ", "passive": "Passive"}
+CONDITION_LABELS = {"target": "Target", "fulloptim": "Proposed", "geq": "Ablation", "passive": "Passive"}
 # Sampled from matplotlib's magma colormap at np.linspace(0.15, 0.8, 4)
 CONDITION_COLOURS = {
     "target": "#251255",
